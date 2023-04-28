@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -27,7 +28,8 @@ func Init() {
 				return
 			}
 			exeName := filepath.Base(exePath)
-			fmt.Printf("Program '%s' already running.\n", exeName)
+			pid := getExistPidFromLockFile(lockFile)
+			fmt.Printf("Program '%s' already running, PID=%s.\n", exeName, pid)
 		} else {
 			fmt.Printf("Can not open lockfile %s: %v\n", lockFile, err)
 		}
@@ -59,6 +61,26 @@ func Init() {
 		fmt.Printf("Can not write lockfile %s: %v\n", lockFile, err)
 		return
 	}
+}
+
+func getExistPidFromLockFile(lockFile string) string {
+	// Read PID from the lockfile
+	existingLockFile, err := os.Open(lockFile)
+	if err != nil {
+		fmt.Printf("Can not open existing lockfile %s: %v\n", lockFile, err)
+		os.Exit(0)
+	}
+	defer existingLockFile.Close()
+
+	pidBuf := make([]byte, 16)
+	n, err := existingLockFile.Read(pidBuf)
+	if err != nil {
+		fmt.Printf("Can not read from lockfile %s: %v\n", lockFile, err)
+		os.Exit(0)
+	}
+
+	existingPid := strings.TrimSpace(string(pidBuf[:n]))
+	return existingPid
 }
 
 func getLockFilePath() string {
@@ -111,6 +133,7 @@ func EnsurePortNotUsed(portFlag *int) int {
 		port++
 	}
 
-	fmt.Printf("Listening on port \033[32m%d\033[0m.\n", port)
+	pid := os.Getpid()
+	fmt.Printf("Listening on port \033[32m%d\033[0m, PID=\033[32m%d\033[0m.\n", port, pid)
 	return port
 }
