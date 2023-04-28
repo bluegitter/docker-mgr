@@ -29,7 +29,10 @@ func main() {
 	lockFile := bootstrap.GetLockFilePath()
 	fmt.Printf("lockFile \033[32m%s\033[0m.\n", lockFile)
 
-	bootstrap.CheckAndRemoveLockFile(lockFile)
+	ret := bootstrap.CheckAndRemoveLockFile(lockFile)
+	if !ret {
+		os.Exit(0)
+	}
 
 	if *daemonFlag {
 		runDaemon()

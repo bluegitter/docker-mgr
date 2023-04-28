@@ -67,45 +67,47 @@ func createLockFile(lockFile string) {
 	}
 }
 
-func CheckAndRemoveLockFile(lockFile string) {
+func CheckAndRemoveLockFile(lockFile string) bool {
 	// Check if lock file exists
 	if _, err := os.Stat(lockFile); err == nil {
 		// Read the PID from the lock file
 		content, err := ioutil.ReadFile(lockFile)
 		if err != nil {
 			log.Fatalf("Cannot read lock file %s: %v", lockFile, err)
-			os.Exit(0)
+			return false
 		}
 		pidStr := strings.TrimSpace(string(content))
 		pid, err := strconv.Atoi(pidStr)
 		if err != nil {
 			log.Fatalf("Cannot parse PID from lock file %s: %v", lockFile, err)
-			os.Exit(0)
+			return false
 		}
 
 		// Check if the process with the PID is running
 		process, err := os.FindProcess(pid)
 		if err != nil {
 			log.Fatalf("Cannot find process with PID %d: %v", pid, err)
+			return true
 		}
 
 		// Send signal 0 to the process to check if it's still running
 		err = process.Signal(syscall.Signal(0))
 		if err == nil {
 			log.Fatalf("Process with PID %d is still running, exiting...", pid)
-			os.Exit(0)
+			return false
 		} else if err.Error() == "os: process already finished" {
 			// Process is not running, remove the lock file
 			err = os.Remove(lockFile)
 			if err != nil {
 				log.Fatalf("Cannot remove lock file %s: %v", lockFile, err)
-				os.Exit(0)
+				return false
 			}
 		} else {
 			log.Fatalf("Error sending signal to process with PID %d: %v", pid, err)
-			os.Exit(0)
+			return false
 		}
 	}
+	return true
 }
 
 func getExistPidFromLockFile(lockFile string) string {
