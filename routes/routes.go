@@ -10,8 +10,15 @@ import (
 )
 
 func BuildRoutes(r *gin.Engine, templateFS embed.FS, cli *client.Client) {
+
+	r.Use(handlers.Middleware())
+
 	// 使用处理函数
 	r.GET("/", func(c *gin.Context) { handlers.IndexHandler(c, templateFS) })
+	r.GET("/login.html", func(c *gin.Context) { handlers.LoginHandler(c, templateFS) })
+	r.POST("/login", func(c *gin.Context) { handlers.CheckLoginHandler(c, templateFS) })
+	r.GET("/check-token", func(c *gin.Context) { handlers.CheckTokenHandler(c) })
+
 	// 镜像列表路由
 	r.GET("/images", func(c *gin.Context) { handlers.ImagesHandler(c, cli) })
 	// 容器列表路由

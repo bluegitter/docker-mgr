@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/bluegitter/docker-mgr/bootstrap"
+	"github.com/bluegitter/docker-mgr/config"
 	"github.com/bluegitter/docker-mgr/routes"
 	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
@@ -24,7 +25,17 @@ func main() {
 	// 解析命令行参数
 	portFlag = flag.Int("port", 8000, "The port to listen on")
 	daemonFlag := flag.Bool("daemon", false, "run as a daemon process")
+	usernameFlag := flag.String("username", "admin", "The username for authentication")
+	passwordFlag := flag.String("password", "admin123", "The password for authentication")
+	helpFlag := flag.Bool("help", false, "display help information")
 	flag.Parse()
+
+	if *helpFlag {
+		displayHelp()
+		return
+	}
+	config.Username = *usernameFlag
+	config.Password = *passwordFlag
 
 	lockFile := bootstrap.GetLockFilePath()
 	fmt.Printf("lockFile \033[32m%s\033[0m.\n", lockFile)
@@ -41,6 +52,14 @@ func main() {
 		bootstrap.Init()
 		run()
 	}
+}
+
+func displayHelp() {
+	exeName := os.Args[0]
+
+	fmt.Printf("Usage: ./%s [options]", exeName)
+	fmt.Println("\nOptions:")
+	flag.PrintDefaults()
 }
 
 func runDaemon() {
@@ -65,7 +84,7 @@ func run() {
 		return
 	}
 
-	gin.SetMode(gin.ReleaseMode)
+	// gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
 	routes.BuildRoutes(r, templateFS, cli)

@@ -79,6 +79,15 @@
   </head>
   <body>
     <div id="app" style="padding: 20px">
+      <el-header>
+        <!-- Other header content -->
+        <el-row type="flex" justify="end">
+          <el-col :span="1" justify="end">
+            <el-button type="text" @click="logout">Logout</el-button>
+          </el-col>
+        </el-row>
+      </el-header>
+
       <!-- 添加这个遮罩层 -->
       <div v-if="loading" class="loading-mask">
         <div class="loading-spinner"></div>
@@ -252,6 +261,23 @@
           },
         },
         methods: {
+          checkToken() {
+            const token = localStorage.getItem("token");
+            if (!token) {
+              location.href = "/login.html";
+              return;
+            }
+
+            fetch("/check-token", {
+              headers: {
+                Authorization: "Bearer " + token,
+              },
+            }).then((response) => {
+              if (response.status !== 200) {
+                location.href = "/login.html";
+              }
+            });
+          },
           showDialog() {
             this.dialogVisible = true;
           },
@@ -352,7 +378,14 @@
           },
           startContainer(containerID) {
             this.loading = true; // 显示遮罩
-            fetch(`/containers/${containerID}/start`, { method: "POST" })
+            const token = localStorage.getItem("token");
+            fetch(`/containers/${containerID}/start`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            })
               .then((response) => response.json())
               .then((data) => {
                 if (data.error) {
@@ -374,7 +407,14 @@
             })
               .then(() => {
                 this.loading = true; // 显示遮罩
-                fetch(`/containers/${containerID}/stop`, { method: "POST" })
+                const token = localStorage.getItem("token");
+                fetch(`/containers/${containerID}/stop`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                })
                   .then((response) => response.json())
                   .then((data) => {
                     if (data.error) {
@@ -400,7 +440,13 @@
             })
               .then(() => {
                 this.loading = true; // 显示遮罩
-                fetch(`/containers/${containerID}/remove`, { method: "POST" })
+                const token = localStorage.getItem("token");
+                fetch(`/containers/${containerID}/remove`, {
+                  method: "POST",
+                  headers: {
+                    Authorization: "Bearer " + token,
+                  },
+                })
                   .then((response) => response.json())
                   .then((data) => {
                     if (data.error) {
@@ -428,7 +474,13 @@
             });
           },
           fetchContainerStats(containerID) {
-            fetch(`/containers/${containerID}/stats`, { method: "POST" })
+            const token = localStorage.getItem("token");
+            fetch(`/containers/${containerID}/stats`, {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + token,
+              },
+            })
               .then((response) => {
                 if (response.ok) {
                   return response.json();
@@ -454,16 +506,49 @@
               })
               .catch((err) => console.error(err));
           },
+          fetchData(url, callback) {
+            // 从localStorage中获取token
+            const token = localStorage.getItem("token");
+
+            // 设置带有Authorization头的HTTP请求选项
+            const requestOptions = {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            };
+
+            // 发送带有JWT令牌的HTTP请求
+            fetch(url, requestOptions)
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error("Network response was not ok");
+                }
+                return response.json();
+              })
+              .then((data) => {
+                callback(data);
+              })
+              .catch((error) => {
+                console.error(
+                  "There was a problem with the fetch operation:",
+                  error
+                );
+              });
+          },
           createAnacondaContainer() {
             this.loading = true; // 显示遮罩
 
             const jupyterPort = this.jupyterPort;
             const sshPort = this.sshPort;
+            const token = localStorage.getItem("token");
 
             fetch("/create_anaconda_container", {
               method: "POST",
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
+                Authorization: `Bearer ${token}`,
               },
               body: new URLSearchParams({
                 jupyter_port: jupyterPort,
@@ -505,9 +590,13 @@
           stateColorClass(state) {
             return state === "running" ? "state-running" : "state-exited";
           },
+          logout() {
+            localStorage.removeItem("token");
+            location.href = "/login.html";
+          },
         },
         created() {
-          console.log("Vue instance is mounted.");
+          this.checkToken();
           this.fetchData("/images", (images) => {
             this.images = images;
           });
