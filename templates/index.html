@@ -37,6 +37,8 @@
       .column-center {
         text-align: center;
         font-weight: bold;
+        justify-content: center;
+        align-items: center;
       }
 
       .loading-mask {
@@ -72,7 +74,7 @@
     </style>
   </head>
   <body>
-    <div id="app">
+    <div id="app" style="padding: 20px">
       <!-- 添加这个遮罩层 -->
       <div v-if="loading" class="loading-mask">
         <div class="loading-spinner"></div>
@@ -81,17 +83,22 @@
         <h2>Images</h2>
         <el-table :data="images" stripe border style="width: 100%">
           <el-table-column
+            align="center"
+            width="130"
             prop="Id"
             label="ID"
             :formatter="truncateId"
           ></el-table-column>
           <el-table-column prop="RepoTags" label="Repo Tags"></el-table-column>
           <el-table-column
+            width="200"
             prop="Created"
             label="Created"
             :formatter="formatRelativeTime"
           ></el-table-column>
           <el-table-column
+            align="center"
+            width="130"
             prop="Size"
             label="Size"
             :formatter="formatSized"
@@ -109,6 +116,8 @@
           :cell-class-name="setCellClassName"
         >
           <el-table-column
+            align="center"
+            width="120"
             prop="Id"
             label="ID"
             :formatter="truncateId"
@@ -119,15 +128,33 @@
             label="Ports"
             :formatter="formatPorts"
           ></el-table-column>
-          <el-table-column label="State" width="100" class-name="column-center">
+          <el-table-column label="State" width="100" align="center">
             <template slot-scope="scope">
               <span :class="stateColorClass(scope.row.State)">
                 {{ scope.row.State }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="Status" label="Status"></el-table-column>
-          <el-table-column label="Actions">
+          <el-table-column
+            width="100"
+            align="center"
+            prop="CPUUsage"
+            label="CPU Usage"
+            :formatter="formatCpuUsage"
+          ></el-table-column>
+          <el-table-column
+            width="250"
+            align="center"
+            prop="MemoryUsage"
+            label="Memory Usage"
+            :formatter="formatMemoryUsage"
+          ></el-table-column>
+          <el-table-column
+            width="200"
+            prop="Status"
+            label="Status"
+          ></el-table-column>
+          <el-table-column width="240" label="Actions">
             <template slot-scope="scope">
               <el-button
                 @click="startContainer(scope.row.Id)"
@@ -208,14 +235,30 @@
           },
         },
         methods: {
-          formatSized(row, column) {
-            const size = row[column.property];
-            const i = Math.floor(Math.log(size) / Math.log(1024));
+          humanReadable(num) {
+            if (num === 0) return "";
+
+            const i = Math.floor(Math.log(num) / Math.log(1024));
             return (
-              (size / Math.pow(1024, i)).toFixed(2) * 1 +
+              (num / Math.pow(1024, i)).toFixed(2) * 1 +
               " " +
               ["B", "KB", "MB", "GB", "TB"][i]
             );
+          },
+          formatSized(row, column) {
+            const size = row[column.property];
+            return this.humanReadable(size);
+          },
+          formatMemoryUsage(row, column) {
+            const memoryUsage = row[column.property];
+            const memoryLimit = row["MemoryLimit"];
+
+            if (memoryUsage == undefined || memoryLimit == undefined) return "";
+
+            usageHuman = this.humanReadable(memoryUsage);
+            limitHuman = this.humanReadable(memoryLimit);
+
+            return usageHuman + " / " + limitHuman;
           },
           formatTimestamp(row, column) {
             const timestamp = row[column.property];
@@ -265,6 +308,13 @@
               id = id.substring(7); // 从第7个字符开始截取（不包含"sha256:"）
             }
             return id.length > length ? id.slice(0, length) : id;
+          },
+          formatCpuUsage(row, column) {
+            const cpuUsage = row[column.property];
+
+            if (cpuUsage == undefined) return "";
+
+            return `${cpuUsage.toFixed(2)}%`;
           },
           formatPorts(row, column) {
             const formattedPorts = [];
@@ -352,7 +402,37 @@
           fetchAndUpdateContainers() {
             this.fetchData("/containers", (containers) => {
               this.containers = containers;
+              this.containers.forEach((container) => {
+                this.fetchContainerStats(container.Id);
+              });
             });
+          },
+          fetchContainerStats(containerID) {
+            fetch(`/containers/${containerID}/stats`, { method: "POST" })
+              .then((response) => {
+                if (response.ok) {
+                  return response.json();
+                } else {
+                  throw new Error("Error fetching container stats");
+                }
+              })
+              .then((stats) => {
+                // Find the container in the containers array
+                const containerIndex = this.containers.findIndex(
+                  (container) => container.Id === containerID
+                );
+
+                if (containerIndex !== -1) {
+                  // Update container stats in the containers array
+                  this.$set(this.containers, containerIndex, {
+                    ...this.containers[containerIndex],
+                    CPUUsage: stats.CPUUsage,
+                    MemoryUsage: stats.MemoryUsage,
+                    MemoryLimit: stats.MemoryLimit,
+                  });
+                }
+              })
+              .catch((err) => console.error(err));
           },
           createAnacondaContainer() {
             this.loading = true; // 显示遮罩
@@ -409,9 +489,7 @@
           this.fetchData("/images", (images) => {
             this.images = images;
           });
-          this.fetchData("/containers", (containers) => {
-            this.containers = containers;
-          });
+          this.fetchAndUpdateContainers();
         },
       });
     </script>

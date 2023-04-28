@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -49,6 +50,38 @@ func ImagesHandler(c *gin.Context, cli *client.Client) {
 	c.JSON(http.StatusOK, images)
 }
 
+type ContainerWithStats struct {
+	Id          string
+	CPUUsage    float64
+	MemoryUsage uint64
+	MemoryLimit uint64
+}
+
+func ContainerStatsHandler(c *gin.Context, cli *client.Client) {
+	containerID := c.Param("id")
+	statsReader, err := cli.ContainerStats(context.Background(), containerID, false)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var containerStats types.StatsJSON
+	err = json.NewDecoder(statsReader.Body).Decode(&containerStats)
+
+	cpuUsage := calculateCPUPercentage(&containerStats)
+	memoryUsage := containerStats.MemoryStats.Usage
+	memoryLimit := containerStats.MemoryStats.Limit
+
+	var containerWithStats = ContainerWithStats{
+		Id:          containerID,
+		CPUUsage:    cpuUsage,
+		MemoryUsage: memoryUsage,
+		MemoryLimit: memoryLimit,
+	}
+
+	c.JSON(http.StatusOK, containerWithStats)
+}
+
 func ContainersListHandler(c *gin.Context, cli *client.Client) {
 	containers, err := getContainers(cli)
 	if err != nil {
@@ -56,6 +89,46 @@ func ContainersListHandler(c *gin.Context, cli *client.Client) {
 		return
 	}
 	c.JSON(http.StatusOK, containers)
+	// // 添加容器资源使用情况
+	// containersWithStats := make([]ContainerWithStats, len(containers))
+	// for i, container := range containers {
+	// 	statsReader, err := cli.ContainerStats(context.Background(), container.ID, false)
+	// 	if err != nil {
+	// 		fmt.Printf("Error getting container stats for %s: %v\n", container.ID, err)
+	// 		continue
+	// 	}
+
+	// 	var containerStats types.StatsJSON
+	// 	err = json.NewDecoder(statsReader.Body).Decode(&containerStats)
+	// 	if err != nil {
+	// 		fmt.Printf("Error decoding container stats for %s: %v\n", container.ID, err)
+	// 		continue
+	// 	}
+
+	// 	cpuUsage := calculateCPUPercentage(&containerStats)
+	// 	memoryUsage := containerStats.MemoryStats.Usage
+	// 	memoryLimit := containerStats.MemoryStats.Limit
+
+	// 	containersWithStats[i] = ContainerWithStats{
+	// 		Container:   container,
+	// 		CPUUsage:    cpuUsage,
+	// 		MemoryUsage: memoryUsage,
+	// 		MemoryLimit: memoryLimit,
+	// 	}
+	// }
+
+	// c.JSON(http.StatusOK, containersWithStats)
+}
+
+func calculateCPUPercentage(stats *types.StatsJSON) float64 {
+	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage) - float64(stats.PreCPUStats.CPUUsage.TotalUsage)
+	systemDelta := float64(stats.CPUStats.SystemUsage) - float64(stats.PreCPUStats.SystemUsage)
+
+	if systemDelta > 0.0 && cpuDelta > 0.0 {
+		return (cpuDelta / systemDelta) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+	}
+
+	return 0.0
 }
 
 func StartContainerHandler(c *gin.Context, cli *client.Client) {

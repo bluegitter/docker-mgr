@@ -19,5 +19,6 @@ func BuildRoutes(r *gin.Engine, templateFS embed.FS, cli *client.Client) {
 	r.POST("/containers/:id/start", func(c *gin.Context) { handlers.StartContainerHandler(c, cli) })
 	r.POST("/containers/:id/stop", func(c *gin.Context) { handlers.StopContainerHandler(c, cli) })
 	r.POST("/containers/:id/remove", func(c *gin.Context) { handlers.RemoveContainerHandler(c, cli) })
+	r.POST("/containers/:id/stats", func(c *gin.Context) { handlers.ContainerStatsHandler(c, cli) })
 	r.POST("/create_anaconda_container", func(c *gin.Context) { handlers.CreateAnacondaContainerHandler(c, cli) })
 }
