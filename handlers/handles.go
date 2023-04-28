@@ -89,35 +89,6 @@ func ContainersListHandler(c *gin.Context, cli *client.Client) {
 		return
 	}
 	c.JSON(http.StatusOK, containers)
-	// // 添加容器资源使用情况
-	// containersWithStats := make([]ContainerWithStats, len(containers))
-	// for i, container := range containers {
-	// 	statsReader, err := cli.ContainerStats(context.Background(), container.ID, false)
-	// 	if err != nil {
-	// 		fmt.Printf("Error getting container stats for %s: %v\n", container.ID, err)
-	// 		continue
-	// 	}
-
-	// 	var containerStats types.StatsJSON
-	// 	err = json.NewDecoder(statsReader.Body).Decode(&containerStats)
-	// 	if err != nil {
-	// 		fmt.Printf("Error decoding container stats for %s: %v\n", container.ID, err)
-	// 		continue
-	// 	}
-
-	// 	cpuUsage := calculateCPUPercentage(&containerStats)
-	// 	memoryUsage := containerStats.MemoryStats.Usage
-	// 	memoryLimit := containerStats.MemoryStats.Limit
-
-	// 	containersWithStats[i] = ContainerWithStats{
-	// 		Container:   container,
-	// 		CPUUsage:    cpuUsage,
-	// 		MemoryUsage: memoryUsage,
-	// 		MemoryLimit: memoryLimit,
-	// 	}
-	// }
-
-	// c.JSON(http.StatusOK, containersWithStats)
 }
 
 func calculateCPUPercentage(stats *types.StatsJSON) float64 {

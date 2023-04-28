@@ -3,9 +3,7 @@ package main
 import (
 	"embed"
 	"flag"
-	"fmt"
 	"log"
-	"net"
 	"strconv"
 
 	"github.com/bluegitter/docker-mgr/bootstrap"
@@ -36,29 +34,7 @@ func main() {
 
 	routes.BuildRoutes(r, templateFS, cli)
 
-	// 运行Web服务器
-	port := *portFlag
-	printedWarning := false
-	for {
-		ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
-		if err == nil {
-			ln.Close()
-			break
-		}
-
-		if opErr, ok := err.(*net.OpError); ok && opErr.Op == "listen" {
-			if !printedWarning {
-				fmt.Printf("\033[31mPort %d is already in use, trying next available port.\033[0m\n", port)
-				printedWarning = true
-			}
-		} else {
-			fmt.Printf("Error while trying to listen on port %d: %v\n", port, err)
-			return
-		}
-		port++
-	}
-
-	fmt.Printf("Listening on port \033[32m%d\033[0m.\n", port)
+	port := bootstrap.EnsurePortNotUsed(portFlag)
 
 	// 运行Web服务器
 	r.Run(":" + strconv.Itoa(port))

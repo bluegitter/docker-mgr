@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -85,4 +86,31 @@ func runShutdownHook(f *os.File, lockFile string) {
 		// 退出程序
 		os.Exit(0)
 	})
+}
+
+func EnsurePortNotUsed(portFlag *int) int {
+	// 运行Web服务器
+	port := *portFlag
+	printedWarning := false
+	for {
+		ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+		if err == nil {
+			ln.Close()
+			break
+		}
+
+		if opErr, ok := err.(*net.OpError); ok && opErr.Op == "listen" {
+			if !printedWarning {
+				fmt.Printf("\033[31mPort %d is already in use, trying next available port.\033[0m\n", port)
+				printedWarning = true
+			}
+		} else {
+			fmt.Printf("Error while trying to listen on port %d: %v\n", port, err)
+			os.Exit(0)
+		}
+		port++
+	}
+
+	fmt.Printf("Listening on port \033[32m%d\033[0m.\n", port)
+	return port
 }
