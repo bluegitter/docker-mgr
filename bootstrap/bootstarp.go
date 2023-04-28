@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -15,16 +16,19 @@ import (
 )
 
 func Init() {
-	lockFile := getLockFilePath()
-	fmt.Printf("lockFile \033[32m%s\033[0m.\n", lockFile)
+	lockFile := GetLockFilePath()
 
+	createLockFile(lockFile)
+}
+
+func createLockFile(lockFile string) {
 	// 尝试创建一个锁文件
 	f, err := os.OpenFile(lockFile, os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		if os.IsExist(err) {
 			exePath, err := os.Executable()
 			if err != nil {
-				fmt.Println("无法获取可执行文件路径:", err)
+				fmt.Println("Can not get execute file path:", err)
 				return
 			}
 			exeName := filepath.Base(exePath)
@@ -63,6 +67,47 @@ func Init() {
 	}
 }
 
+func CheckAndRemoveLockFile(lockFile string) {
+	// Check if lock file exists
+	if _, err := os.Stat(lockFile); err == nil {
+		// Read the PID from the lock file
+		content, err := ioutil.ReadFile(lockFile)
+		if err != nil {
+			log.Fatalf("Cannot read lock file %s: %v", lockFile, err)
+			os.Exit(0)
+		}
+		pidStr := strings.TrimSpace(string(content))
+		pid, err := strconv.Atoi(pidStr)
+		if err != nil {
+			log.Fatalf("Cannot parse PID from lock file %s: %v", lockFile, err)
+			os.Exit(0)
+		}
+
+		// Check if the process with the PID is running
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			log.Fatalf("Cannot find process with PID %d: %v", pid, err)
+		}
+
+		// Send signal 0 to the process to check if it's still running
+		err = process.Signal(syscall.Signal(0))
+		if err == nil {
+			log.Fatalf("Process with PID %d is still running, exiting...", pid)
+			os.Exit(0)
+		} else if err.Error() == "os: process already finished" {
+			// Process is not running, remove the lock file
+			err = os.Remove(lockFile)
+			if err != nil {
+				log.Fatalf("Cannot remove lock file %s: %v", lockFile, err)
+				os.Exit(0)
+			}
+		} else {
+			log.Fatalf("Error sending signal to process with PID %d: %v", pid, err)
+			os.Exit(0)
+		}
+	}
+}
+
 func getExistPidFromLockFile(lockFile string) string {
 	// Read PID from the lockfile
 	existingLockFile, err := os.Open(lockFile)
@@ -83,7 +128,7 @@ func getExistPidFromLockFile(lockFile string) string {
 	return existingPid
 }
 
-func getLockFilePath() string {
+func GetLockFilePath() string {
 	tmpDir := os.TempDir()
 	return filepath.Join(tmpDir, "app.lock")
 }
