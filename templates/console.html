@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Console</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.bootcdn.net/ajax/libs/xterm/3.13.1/xterm.min.css"
+    />
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+      }
+      #terminal .terminal {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        height: 90%;
+        width: 90%;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <script src="https://cdn.bootcdn.net/ajax/libs/xterm/3.13.1/xterm.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/xterm/3.13.1/addons/fit/fit.js"></script>
+    <script>
+      function resizeTerminal() {
+        const terminalContainer = document.getElementById("terminal");
+        const padding = 5;
+        const availableWidth = window.innerWidth - 2 * padding;
+        const availableHeight = window.innerHeight - 2 * padding;
+
+        terminalContainer.style.width = `${availableWidth}px`;
+        terminalContainer.style.height = `${availableHeight}px`;
+      }
+
+      function getParameterByName(name, url) {
+        if (!url) url = window.location.href;
+        name = name.replace(/[\[\]]/g, "\\$&");
+        const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+          results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return "";
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+      }
+
+      const containerId = getParameterByName("containerId");
+      const terminal = new Terminal();
+      terminal.open(document.getElementById("terminal"));
+      resizeTerminal();
+      fit.fit(terminal);
+      // 将焦点设置到 terminal
+      terminal.focus();
+
+      window.addEventListener("resize", () => {
+        resizeTerminal();
+        fit.fit(terminal);
+      });
+
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const host = window.location.host;
+
+      const wsUrl = `${protocol}//${host}/ws?containerID=${containerId}`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        // terminal.write("Connected to server\n");
+        ws.send("uname -a\n");
+      };
+
+      ws.onmessage = (event) => {
+        terminal.write(event.data);
+      };
+
+      ws.onclose = () => {
+        terminal.write("Disconnected from server\n");
+      };
+
+      terminal.onData((data) => {
+        ws.send(data);
+      });
+    </script>
+  </body>
+</html>

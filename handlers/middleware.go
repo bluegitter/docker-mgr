@@ -11,7 +11,11 @@ import (
 
 func Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/login.html" || c.Request.URL.Path == "/login" || c.Request.URL.Path == "/" {
+		if c.Request.URL.Path == "/login.html" ||
+			c.Request.URL.Path == "/login" ||
+			c.Request.URL.Path == "/" ||
+			c.Request.URL.Path == "/console.html" ||
+			c.Request.URL.Path == "/ws" {
 			c.Next()
 			return
 		}

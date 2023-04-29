@@ -75,6 +75,10 @@
           transform: rotate(360deg);
         }
       }
+      .compact-button {
+        margin-right: 0px;
+        padding: 7px 1px;
+      }
     </style>
   </head>
   <body>
@@ -178,19 +182,29 @@
                 @click="startContainer(scope.row.Id)"
                 type="primary"
                 size="mini"
+                class="compact-button"
                 >Start</el-button
               >
               <el-button
                 @click="stopContainer(scope.row.Id)"
                 type="danger"
                 size="mini"
+                class="compact-button"
                 >Stop</el-button
               >
               <el-button
                 @click="removeContainer(scope.row.Id)"
                 type="danger"
                 size="mini"
+                class="compact-button"
                 >Remove</el-button
+              >
+              <el-button
+                @click="openConsole(scope.row.Id)"
+                type="success"
+                size="mini"
+                class="compact-button"
+                >Console</el-button
               >
             </template>
           </el-table-column>
@@ -261,6 +275,9 @@
           },
         },
         methods: {
+          openConsole(containerId) {
+            window.open(`console.html?containerId=${containerId}`, "_blank");
+          },
           checkToken() {
             const token = localStorage.getItem("token");
             if (!token) {
